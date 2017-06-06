@@ -38,6 +38,10 @@ var User = sequelize.import(path.join(__dirname,'user'));
 Tip.belongsTo(Quiz);
 Quiz.hasMany(Tip);
 
+// Relacion 1 a N entre User y Tip
+Tip.belongsTo(User, {as: 'Author', foreignKey: 'AuthorId'});
+User.hasMany(Tip, {foreignKey: 'AuthorId'});
+
 // Relacion 1 a N entre User y Quiz:
 User.hasMany(Quiz, {foreignKey: 'AuthorId'});
 Quiz.belongsTo(User, {as: 'Author', foreignKey: 'AuthorId'});
