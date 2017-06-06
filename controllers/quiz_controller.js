@@ -24,23 +24,69 @@ exports.load = function (req, res, next, quizId) {
         next(error);
     });
 };
+//GET /quizzes/randomplay
+exports.randomplay = function (req, res, next) {
+    req.session.score = req.session.score || 0;
+    req.session.array = req.session.array || [-1];
+
+    models.Quiz.count()
+        .then(function (count) {
+           return models.Quiz.findAll({where:{id:{$notIn :req.session.array}}});
+        })
+        .then(function(quizzes){
+            if(quizzes.length>0)
+                return quizzes[parseInt(Math.random()*quizzes.length)];
+                else
+                    return null;
 
 
-// MW que permite acciones solamente si al usuario logeado es admin o es el autor del quiz.
-exports.adminOrAuthorRequired = function(req, res, next){
+            })
+        .then(function (quiz){
+        if(quiz){
+            if(req.session.score == req.session.array.length-1){
+            req.session.array.push(quiz.id);
+            res.render('quizzes/random_play',{
+                quiz:quiz,
+                score:req.session.score
+            });} else{
+                res.render('quizzes/random_play',{
+                    quiz:quiz,
+                    score:req.session.score
+                });
+            }
+        }else{
+            var score = req.session.score;
+            req.session.score =0;
+            req.session.array = [-1];
+            res.render('quizzes/random_nomore',{
+                score:score
+            });
+        }
+    })
 
-    var isAdmin  = req.session.user.isAdmin;
-    var isAuthor = req.quiz.AuthorId === req.session.user.id;
-
-    if (isAdmin || isAuthor) {
-        next();
-    } else {
-        console.log('Operación prohibida: El usuario logeado no es el autor del quiz, ni un administrador.');
-        res.send(403);
-    }
+        .catch(function (error) {
+            req.flash('error','Error al cargar el Quiz: '+error.message)
+            next(error);
+        });
 };
 
 
+exports.randomcheck = function (req, res, next) {
+
+    var answer = req.query.answer || "";
+    var result = answer.toLowerCase().trim() === req.quiz.answer.toLowerCase().trim();
+    if(!result){
+        req.session.score =0;
+        req.session.array =[-1];
+    }else{
+    req.session.score +=1;}
+    res.render('quizzes/random_result', {
+        score:req.session.score,
+        quiz: req.quiz,
+        result: result,
+        answer: answer
+    });
+};
 // GET /quizzes
 exports.index = function (req, res, next) {
 
@@ -221,4 +267,17 @@ exports.check = function (req, res, next) {
         result: result,
         answer: answer
     });
+};
+// MW que permite acciones solamente si al usuario logeado es admin o es el autor del quiz.
+exports.adminOrAuthorRequired = function(req, res, next){
+
+    var isAdmin  = req.session.user.isAdmin;
+    var isAuthor = req.quiz.AuthorId === req.session.user.id;
+
+    if (isAdmin || isAuthor) {
+        next();
+    } else {
+        console.log('Operación prohibida: El usuario logeado no es el autor del quiz, ni un administrador.');
+        res.send(403);
+    }
 };
